@@ -63,15 +63,46 @@ import { Footer } from './components/Footer';
 
 export default function App() {
   const deviceTime = useDeviceDateTime();
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize state synchronously so first paint happens immediately with zero delay
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    try {
+      return getSavedProfile();
+    } catch (e) {
+      console.warn('Gagal membaca profil awal:', e);
+      return null;
+    }
+  });
+
+  const [records, setRecords] = useState<Record<string, DayRecord>>(() => {
+    try {
+      return getAllRecords() || {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [targetTimes, setTargetTimes] = useState<Record<HabitId, string>>(() => {
+    try {
+      return getSavedTargetTimes() || ({} as Record<HabitId, string>);
+    } catch {
+      return {} as Record<HabitId, string>;
+    }
+  });
+
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
+    try {
+      return getSavedTheme() || DEFAULT_THEME_CONFIG;
+    } catch {
+      return DEFAULT_THEME_CONFIG;
+    }
+  });
+
+  const [isInitialized, setIsInitialized] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [showIntro, setShowIntro] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'statistics' | 'theme' | 'report'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateString());
-  const [records, setRecords] = useState<Record<string, DayRecord>>({});
-  const [targetTimes, setTargetTimes] = useState<Record<HabitId, string>>({} as Record<HabitId, string>);
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(getSavedTheme());
   const [customBgUrl, setCustomBgUrl] = useState<string | null>(null);
 
   // Active Modals
@@ -97,54 +128,32 @@ export default function App() {
     }
   }, [deviceTime.isoDate, selectedDate]);
 
-  // Initial Load with guaranteed termination (no infinite loading)
+  // Synchronous mount signal & background asset loading
   useEffect(() => {
-    // Failsafe timer: forces completion after 1500ms so screen is never stuck
-    const safetyTimer = setTimeout(() => {
-      setIsInitialized(true);
-      if (typeof (window as any).__SMANKAIH_MOUNTED__ === 'function') {
-        (window as any).__SMANKAIH_MOUNTED__();
-      }
-    }, 1500);
+    // Notify HTML watchdog that React has mounted successfully
+    if (typeof (window as any).__SMANKAIH_MOUNTED__ === 'function') {
+      (window as any).__SMANKAIH_MOUNTED__();
+    }
 
     try {
-      const savedUser = getSavedProfile();
-      const all = getAllRecords();
-      const savedTimes = getSavedTargetTimes();
-      const savedTheme = getSavedTheme();
+      // Check session intro
+      const hasSeenIntro = safeSessionStorageGet('smankaih_session_intro');
+      if (user && !hasSeenIntro) {
+        setShowIntro(true);
+        safeSessionStorageSet('smankaih_session_intro', 'true');
+      }
 
-      setUser(savedUser);
-      setRecords(all || {});
-      setTargetTimes(savedTimes || ({} as Record<HabitId, string>));
-      setThemeConfig(savedTheme || DEFAULT_THEME_CONFIG);
-
-      // Load custom background from IndexedDB if enabled
-      if (savedTheme?.useCustomImage) {
+      // Load custom background from IndexedDB non-blockingly
+      if (themeConfig?.useCustomImage) {
         getCustomBackgroundFromDB('user_custom_bg')
           .then((data) => {
             if (data) setCustomBgUrl(data);
           })
           .catch(() => {});
       }
-
-      // If user exists and hasn't seen intro this session, show intro
-      const hasSeenIntro = safeSessionStorageGet('smankaih_session_intro');
-      if (savedUser && !hasSeenIntro) {
-        setShowIntro(true);
-        safeSessionStorageSet('smankaih_session_intro', 'true');
-      }
     } catch (err: any) {
-      console.warn('Initial storage load warning:', err);
-      setInitError(err?.message || 'Gagal memuat preferensi');
-    } finally {
-      clearTimeout(safetyTimer);
-      setIsInitialized(true);
-      if (typeof (window as any).__SMANKAIH_MOUNTED__ === 'function') {
-        (window as any).__SMANKAIH_MOUNTED__();
-      }
+      console.warn('Peringatan inisialisasi sesi:', err);
     }
-
-    return () => clearTimeout(safetyTimer);
   }, []);
 
   // Try background music when user enters
@@ -294,7 +303,18 @@ export default function App() {
                 Lanjutkan ke Aplikasi &rarr;
               </button>
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  try {
+                    const u = getSavedProfile();
+                    const all = getAllRecords();
+                    setUser(u);
+                    setRecords(all || {});
+                    setInitError(null);
+                    setIsInitialized(true);
+                  } catch (e) {
+                    window.location.reload();
+                  }
+                }}
                 className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
               >
                 Coba Lagi

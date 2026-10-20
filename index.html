@@ -2,7 +2,7 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>SMANKAIH — 7 Kebiasaan Anak Indonesia Hebat</title>
     <meta name="description" content="Website edukasi interaktif SMANKAIH untuk memantau dan mengembangkan 7 kebiasaan positif setiap hari bagi pelajar Indonesia." />
     <meta property="og:title" content="SMANKAIH — 7 Kebiasaan Anak Indonesia Hebat" />
@@ -12,6 +12,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet" />
+
+    <!-- Single Page Apps for GitHub Pages redirect decoder -->
+    <script>
+      (function(l) {
+        if (l.search && l.search[1] === '/') {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&');
+          }).join('?');
+          window.history.replaceState(null, null,
+            l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location));
+    </script>
   </head>
   <body class="min-h-screen bg-slate-950 text-white antialiased selection:bg-red-600 selection:text-white">
     <div id="root">
@@ -38,44 +52,88 @@
       </div>
     </noscript>
 
-    <!-- Startup Watchdog: Prevents infinite loading screen on mobile or slow networks -->
+    <!-- Startup Watchdog: Prevents freeze, captures network/script errors, accommodates slow networks -->
     <script>
       (function() {
         var hasMounted = false;
+        var safetyTimer = null;
+        var progressTimer1 = null;
+        var progressTimer2 = null;
+
         window.__SMANKAIH_MOUNTED__ = function() {
           hasMounted = true;
+          if (safetyTimer) clearTimeout(safetyTimer);
+          if (progressTimer1) clearTimeout(progressTimer1);
+          if (progressTimer2) clearTimeout(progressTimer2);
+          var loader = document.getElementById('smankaih-initial-loader');
+          if (loader && loader.parentNode) {
+            // Loader will be naturally replaced by React render, but ensure clean state
+            loader.style.display = 'none';
+          }
+        };
+
+        window.smankaihForceReload = function() {
+          try {
+            sessionStorage.removeItem('smankaih_session_intro');
+          } catch(e) {}
+          // Cache bust parameter to avoid stale cache on mobile
+          var sep = window.location.href.indexOf('?') === -1 ? '?' : '&';
+          window.location.href = window.location.href.split('#')[0] + sep + '_retry=' + Date.now();
         };
 
         function showStartupFailure(msg) {
           if (hasMounted) return;
           var loader = document.getElementById('smankaih-initial-loader');
           if (loader) {
+            loader.style.display = 'flex';
             loader.innerHTML = [
               '<div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(220, 38, 38, 0.2); border: 2px solid #ef4444; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 16px; color: #ef4444;">⚠</div>',
               '<div style="font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; color: #ffffff;">Kendala Memuat SMANKAIH</div>',
               '<div style="font-size: 12px; color: #cbd5e1; max-width: 320px; line-height: 1.5; margin-bottom: 16px;">' + (msg || 'Waktu pemuatan melebihi batas atau koneksi internet tidak stabil.') + '</div>',
-              '<button onclick="window.location.reload()" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: #ffffff; border: none; padding: 10px 22px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); margin-bottom: 10px;">Coba Lagi (Muat Ulang)</button>',
+              '<button onclick="window.smankaihForceReload()" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: #ffffff; border: none; padding: 10px 22px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); margin-bottom: 10px;">Coba Lagi (Muat Ulang)</button>',
               '<div style="font-size: 11px; color: #64748b; margin-top: 6px;">Tips: Pastikan koneksi internet HP aktif dan peramban telah diperbarui.</div>'
             ].join('');
           }
         }
 
+        // Capture phase error listener to detect script/stylesheet load failures (e.g. 404)
         window.addEventListener('error', function(e) {
-          if (e && e.filename && (e.filename.indexOf('.js') !== -1 || e.filename.indexOf('.tsx') !== -1)) {
-            showStartupFailure('Gagal mengunduh file modul aplikasi: ' + (e.message || 'Periksa jaringan internet'));
+          if (hasMounted) return;
+          var target = e.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            var url = target.src || target.href || 'modul';
+            showStartupFailure('Gagal mengunduh berkas aplikasi (' + url.split('/').pop() + '). Periksa koneksi internet Anda.');
           }
-        });
+        }, true);
 
-        // 7-second safety timeout
-        setTimeout(function() {
-          if (!hasMounted && document.getElementById('smankaih-initial-loader')) {
-            showStartupFailure('Aplikasi memerlukan waktu lebih lama dari biasanya untuk dimuat.');
+        // Slow connection reassurance milestones (does not fail prematurely)
+        progressTimer1 = setTimeout(function() {
+          if (!hasMounted) {
+            var statusEl = document.getElementById('smankaih-loader-status');
+            if (statusEl) {
+              statusEl.innerText = 'Mengunduh modul SMANKAIH... Mohon tunggu sebentar.';
+            }
           }
-        }, 7000);
+        }, 3500);
+
+        progressTimer2 = setTimeout(function() {
+          if (!hasMounted) {
+            var statusEl = document.getElementById('smankaih-loader-status');
+            if (statusEl) {
+              statusEl.innerText = 'Menyiapkan tampilan untuk HP Android... Sedang memproses.';
+            }
+          }
+        }, 8000);
+
+        // Safe 18-second timeout for truly disconnected or stalled connections
+        safetyTimer = setTimeout(function() {
+          if (!hasMounted && document.getElementById('smankaih-initial-loader')) {
+            showStartupFailure('Aplikasi memerlukan waktu lebih lama dari biasanya untuk dimuat. Silakan periksa jaringan internet Anda.');
+          }
+        }, 18000);
       })();
     </script>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

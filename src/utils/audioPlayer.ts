@@ -87,7 +87,10 @@ class AudioPlayerController {
       try {
         this.loadPreferences();
         this.initAudioElement();
-        this.checkAllFiles();
+        // Defer audio file probe so it never competes with initial app mounting
+        setTimeout(() => {
+          this.checkAllFiles();
+        }, 2000);
       } catch (err) {
         console.warn('AudioPlayerController initialization deferred:', err);
       }
@@ -189,7 +192,10 @@ class AudioPlayerController {
         continue;
       }
       try {
-        const res = await fetch(song.mp3Path, { method: 'HEAD' });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(song.mp3Path, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           this.fileStatus[song.id] = 'available';
         } else {

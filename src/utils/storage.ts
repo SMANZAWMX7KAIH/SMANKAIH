@@ -86,6 +86,12 @@ function openDB(): Promise<IDBDatabase> {
         reject(new Error('IndexedDB not supported'));
         return;
       }
+
+      // Safety timeout: abort if IndexedDB hangs
+      const timeoutId = setTimeout(() => {
+        reject(new Error('IndexedDB open timeout'));
+      }, 2000);
+
       const request = window.indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
@@ -93,9 +99,18 @@ function openDB(): Promise<IDBDatabase> {
           db.createObjectStore(STORE_NAME);
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('IndexedDB open error'));
-      request.onblocked = () => reject(new Error('IndexedDB blocked'));
+      request.onsuccess = () => {
+        clearTimeout(timeoutId);
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        clearTimeout(timeoutId);
+        reject(request.error || new Error('IndexedDB open error'));
+      };
+      request.onblocked = () => {
+        clearTimeout(timeoutId);
+        reject(new Error('IndexedDB blocked'));
+      };
     } catch (e) {
       reject(e);
     }

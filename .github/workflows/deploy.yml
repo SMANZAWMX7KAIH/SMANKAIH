@@ -43,7 +43,8 @@ jobs:
       - name: Build production bundle
         env:
           NODE_ENV: production
-          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          GITHUB_REPOSITORY: SMANZAWMX7KAIH/SMANKAIH
+          VITE_BASE_PATH: /SMANKAIH/
         run: npm run build
 
       - name: Upload artifact

@@ -1,34 +1,65 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
+
+/**
+ * Determines the correct public base path:
+ * 1. Explicit VITE_BASE_PATH or BASE_PATH if set (e.g. from GitHub Actions)
+ * 2. GITHUB_REPOSITORY (e.g. SMANZAWMX7KAIH/SMANKAIH -> /SMANKAIH/)
+ * 3. Default production path for SMANKAIH repository is '/SMANKAIH/'
+ * 4. Development mode uses '/'
+ */
+function resolveBasePath(mode: string): string {
+  const explicitBase = process.env.VITE_BASE_PATH || process.env.BASE_PATH;
+  if (explicitBase !== undefined && explicitBase.trim() !== '') {
+    let b = explicitBase.trim();
+    if (!b.startsWith('/') && !b.startsWith('.')) {
+      b = '/' + b;
+    }
+    if (!b.endsWith('/')) {
+      b = b + '/';
+    }
+    return b;
+  }
+
+  if (process.env.GITHUB_REPOSITORY) {
+    const repoParts = process.env.GITHUB_REPOSITORY.split('/');
+    const repoName = repoParts[1] || 'SMANKAIH';
+    return `/${repoName}/`;
+  }
+
+  if (mode === 'production' || process.env.NODE_ENV === 'production') {
+    return '/SMANKAIH/';
+  }
+
+  return '/';
+}
 
 export default defineConfig(({ mode }) => {
-  const isProduction = mode === 'production' || process.env.NODE_ENV === 'production';
-
-  // Real repository detection without guessing:
-  // 1. Explicit VITE_BASE_PATH / BASE_PATH if set
-  // 2. In GitHub Actions, GITHUB_REPOSITORY is automatically provided as 'OWNER/REPO' (e.g. SMANZAWMX7KAIH/SMANKAIH)
-  // 3. Fallback to relative './' for production so it works under ANY repository name or custom domain without guessing
-  // 4. In development, use '/'
-  let base = '/';
-  if (isProduction) {
-    if (process.env.VITE_BASE_PATH) {
-      base = process.env.VITE_BASE_PATH;
-    } else if (process.env.GITHUB_REPOSITORY) {
-      const repoName = process.env.GITHUB_REPOSITORY.split('/')[1];
-      base = repoName ? `/${repoName}/` : './';
-    } else {
-      base = './';
-    }
-  }
+  const base = resolveBasePath(mode);
 
   return {
     base,
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve('.'),
+      },
+    },
+    build: {
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/canvas-confetti')) {
+              return 'vendor-confetti';
+            }
+          },
+        },
       },
     },
     server: {
