@@ -13,6 +13,8 @@ export interface SongTrack {
   tempo: string;
 }
 
+import { safeLocalStorageGet, safeLocalStorageSet } from './storage';
+
 export function getAssetUrl(path: string): string {
   const base = import.meta.env.BASE_URL || '/';
   const cleanBase = base.endsWith('/') ? base : `${base}/`;
@@ -82,24 +84,28 @@ class AudioPlayerController {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.loadPreferences();
-      this.initAudioElement();
-      this.checkAllFiles();
+      try {
+        this.loadPreferences();
+        this.initAudioElement();
+        this.checkAllFiles();
+      } catch (err) {
+        console.warn('AudioPlayerController initialization deferred:', err);
+      }
     }
   }
 
   private loadPreferences() {
     try {
-      const savedVol = localStorage.getItem(STORAGE_KEYS.VOLUME);
+      const savedVol = safeLocalStorageGet(STORAGE_KEYS.VOLUME);
       if (savedVol !== null) {
         this.volume = parseFloat(savedVol);
         this.previousVolumeBeforeMute = this.volume;
       }
-      const savedMuted = localStorage.getItem(STORAGE_KEYS.MUTED);
+      const savedMuted = safeLocalStorageGet(STORAGE_KEYS.MUTED);
       if (savedMuted === 'true') {
         this.isMuted = true;
       }
-      const savedSong = localStorage.getItem(STORAGE_KEYS.LAST_SONG);
+      const savedSong = safeLocalStorageGet(STORAGE_KEYS.LAST_SONG);
       if (savedSong) {
         const idx = SONGS.findIndex((s) => s.id === savedSong);
         if (idx !== -1) {
@@ -113,63 +119,67 @@ class AudioPlayerController {
 
   private savePreferences() {
     try {
-      localStorage.setItem(STORAGE_KEYS.VOLUME, this.volume.toString());
-      localStorage.setItem(STORAGE_KEYS.MUTED, this.isMuted.toString());
-      localStorage.setItem(STORAGE_KEYS.LAST_SONG, this.getCurrentSong().id);
+      safeLocalStorageSet(STORAGE_KEYS.VOLUME, this.volume.toString());
+      safeLocalStorageSet(STORAGE_KEYS.MUTED, this.isMuted.toString());
+      safeLocalStorageSet(STORAGE_KEYS.LAST_SONG, this.getCurrentSong().id);
     } catch {}
   }
 
   private initAudioElement() {
     if (this.audio) return;
-    this.audio = new Audio();
-    this.audio.preload = 'metadata';
-    this.audio.volume = this.isMuted ? 0 : this.volume;
-    this.audio.loop = this.isLooping;
+    try {
+      this.audio = new Audio();
+      this.audio.preload = 'metadata';
+      this.audio.volume = this.isMuted ? 0 : this.volume;
+      this.audio.loop = this.isLooping;
 
-    this.audio.addEventListener('play', () => {
-      this.isPlaying = true;
-      this.errorMessage = null;
-      this.notify();
-    });
+      this.audio.addEventListener('play', () => {
+        this.isPlaying = true;
+        this.errorMessage = null;
+        this.notify();
+      });
 
-    this.audio.addEventListener('pause', () => {
-      this.isPlaying = false;
-      this.notify();
-    });
+      this.audio.addEventListener('pause', () => {
+        this.isPlaying = false;
+        this.notify();
+      });
 
-    this.audio.addEventListener('timeupdate', () => {
-      if (this.audio) {
-        this.currentTime = this.audio.currentTime;
-        if (!isNaN(this.audio.duration) && this.audio.duration > 0) {
-          this.duration = this.audio.duration;
+      this.audio.addEventListener('timeupdate', () => {
+        if (this.audio) {
+          this.currentTime = this.audio.currentTime;
+          if (!isNaN(this.audio.duration) && this.audio.duration > 0) {
+            this.duration = this.audio.duration;
+          }
+          this.notify();
         }
-        this.notify();
-      }
-    });
+      });
 
-    this.audio.addEventListener('loadedmetadata', () => {
-      if (this.audio) {
-        this.duration = isNaN(this.audio.duration) ? 0 : this.audio.duration;
+      this.audio.addEventListener('loadedmetadata', () => {
+        if (this.audio) {
+          this.duration = isNaN(this.audio.duration) ? 0 : this.audio.duration;
+          const curId = this.getCurrentSong().id;
+          this.fileStatus[curId] = 'available';
+          this.notify();
+        }
+      });
+
+      this.audio.addEventListener('ended', () => {
+        if (!this.isLooping) {
+          this.nextTrack(true);
+        }
+      });
+
+      this.audio.addEventListener('error', () => {
         const curId = this.getCurrentSong().id;
-        this.fileStatus[curId] = 'available';
+        this.fileStatus[curId] = 'missing';
+        this.isPlaying = false;
+        this.errorMessage = `File audio "${this.getCurrentSong().mp3Path}" belum dipasang di folder public/audio/.`;
         this.notify();
-      }
-    });
-
-    this.audio.addEventListener('ended', () => {
-      if (!this.isLooping) {
-        this.nextTrack(true);
-      }
-    });
-
-    this.audio.addEventListener('error', () => {
-      const curId = this.getCurrentSong().id;
-      // Mark file as missing / not found
-      this.fileStatus[curId] = 'missing';
-      this.isPlaying = false;
-      this.errorMessage = `File audio "${this.getCurrentSong().mp3Path}" belum dipasang di folder public/audio/.`;
-      this.notify();
-    });
+      });
+    } catch (e) {
+      console.warn('HTMLAudioElement not supported or blocked:', e);
+      this.audio = null;
+    }
   }
 
   public async checkAllFiles() {

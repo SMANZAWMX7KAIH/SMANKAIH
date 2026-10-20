@@ -4,9 +4,24 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(({ mode }) => {
-  // Support GitHub Pages deployment under /SMANKAIH/ repository path
   const isProduction = mode === 'production' || process.env.NODE_ENV === 'production';
-  const base = process.env.VITE_BASE_PATH || process.env.BASE_PATH || (isProduction ? '/SMANKAIH/' : '/');
+
+  // Real repository detection without guessing:
+  // 1. Explicit VITE_BASE_PATH / BASE_PATH if set
+  // 2. In GitHub Actions, GITHUB_REPOSITORY is automatically provided as 'OWNER/REPO' (e.g. SMANZAWMX7KAIH/SMANKAIH)
+  // 3. Fallback to relative './' for production so it works under ANY repository name or custom domain without guessing
+  // 4. In development, use '/'
+  let base = '/';
+  if (isProduction) {
+    if (process.env.VITE_BASE_PATH) {
+      base = process.env.VITE_BASE_PATH;
+    } else if (process.env.GITHUB_REPOSITORY) {
+      const repoName = process.env.GITHUB_REPOSITORY.split('/')[1];
+      base = repoName ? `/${repoName}/` : './';
+    } else {
+      base = './';
+    }
+  }
 
   return {
     base,

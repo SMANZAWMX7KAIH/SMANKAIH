@@ -77,6 +77,11 @@ export function formatDeviceDate(inputDate: Date | string = new Date()): Formatt
     dateObj = inputDate;
   }
 
+  // Fallback if dateObj is invalid
+  if (isNaN(dateObj.getTime())) {
+    dateObj = new Date();
+  }
+
   // Ambil komponen menggunakan metode standar Date
   const year = dateObj.getFullYear();
   const monthIndex = dateObj.getMonth();

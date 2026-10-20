@@ -42,7 +42,8 @@ import {
   getTodayDateString, 
   formatDateIndonesian,
   safeSessionStorageGet,
-  safeSessionStorageSet 
+  safeSessionStorageSet,
+  DEFAULT_THEME_CONFIG 
 } from './utils/storage';
 import { useDeviceDateTime, formatDeviceDate } from './utils/dateUtils';
 import { audioController } from './utils/audioPlayer';
@@ -64,6 +65,7 @@ export default function App() {
   const deviceTime = useDeviceDateTime();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const [showIntro, setShowIntro] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'statistics' | 'theme' | 'report'>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateString());
@@ -95,35 +97,54 @@ export default function App() {
     }
   }, [deviceTime.isoDate, selectedDate]);
 
-  // Initial Load
+  // Initial Load with guaranteed termination (no infinite loading)
   useEffect(() => {
-    const savedUser = getSavedProfile();
-    const all = getAllRecords();
-    const savedTimes = getSavedTargetTimes();
-    const savedTheme = getSavedTheme();
+    // Failsafe timer: forces completion after 1500ms so screen is never stuck
+    const safetyTimer = setTimeout(() => {
+      setIsInitialized(true);
+      if (typeof (window as any).__SMANKAIH_MOUNTED__ === 'function') {
+        (window as any).__SMANKAIH_MOUNTED__();
+      }
+    }, 1500);
 
-    setUser(savedUser);
-    setRecords(all);
-    setTargetTimes(savedTimes);
-    setThemeConfig(savedTheme);
+    try {
+      const savedUser = getSavedProfile();
+      const all = getAllRecords();
+      const savedTimes = getSavedTargetTimes();
+      const savedTheme = getSavedTheme();
 
-    // Load custom background from IndexedDB if enabled
-    if (savedTheme.useCustomImage) {
-      getCustomBackgroundFromDB('user_custom_bg').then((data) => {
-        if (data) {
-          setCustomBgUrl(data);
-        }
-      });
+      setUser(savedUser);
+      setRecords(all || {});
+      setTargetTimes(savedTimes || ({} as Record<HabitId, string>));
+      setThemeConfig(savedTheme || DEFAULT_THEME_CONFIG);
+
+      // Load custom background from IndexedDB if enabled
+      if (savedTheme?.useCustomImage) {
+        getCustomBackgroundFromDB('user_custom_bg')
+          .then((data) => {
+            if (data) setCustomBgUrl(data);
+          })
+          .catch(() => {});
+      }
+
+      // If user exists and hasn't seen intro this session, show intro
+      const hasSeenIntro = safeSessionStorageGet('smankaih_session_intro');
+      if (savedUser && !hasSeenIntro) {
+        setShowIntro(true);
+        safeSessionStorageSet('smankaih_session_intro', 'true');
+      }
+    } catch (err: any) {
+      console.warn('Initial storage load warning:', err);
+      setInitError(err?.message || 'Gagal memuat preferensi');
+    } finally {
+      clearTimeout(safetyTimer);
+      setIsInitialized(true);
+      if (typeof (window as any).__SMANKAIH_MOUNTED__ === 'function') {
+        (window as any).__SMANKAIH_MOUNTED__();
+      }
     }
 
-    // If user exists and hasn't seen intro this session, show intro
-    const hasSeenIntro = safeSessionStorageGet('smankaih_session_intro');
-    if (savedUser && !hasSeenIntro) {
-      setShowIntro(true);
-      safeSessionStorageSet('smankaih_session_intro', 'true');
-    }
-
-    setIsInitialized(true);
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   // Try background music when user enters
@@ -255,11 +276,44 @@ export default function App() {
 
   if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="w-5 h-5 animate-spin text-red-500" />
-          <span>Memuat SMANKAIH...</span>
-        </div>
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4">
+        {initError ? (
+          <div className="max-w-md w-full bg-slate-900 border border-red-500/30 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-red-600/20 text-red-500 flex items-center justify-center mx-auto text-xl font-bold">
+              ⚠
+            </div>
+            <h2 className="text-lg font-black text-white">Kendala Memuat Preferensi</h2>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Terjadi kendala saat membaca data lokal peramban. Anda dapat langsung melanjutkan atau memuat ulang.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setIsInitialized(true)}
+                className="flex-1 py-2.5 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                Lanjutkan ke Aplikasi &rarr;
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                Coba Lagi
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Sparkles className="w-8 h-8 animate-spin text-red-500" />
+            <span className="font-extrabold text-base tracking-tight text-white">Menyiapkan SMANKAIH...</span>
+            <span className="text-xs text-slate-400">7 Kebiasaan Anak Indonesia Hebat</span>
+            <button
+              onClick={() => setIsInitialized(true)}
+              className="mt-4 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[11px] text-slate-300 font-medium transition cursor-pointer"
+            >
+              Langsung Masuk &rarr;
+            </button>
+          </div>
+        )}
       </div>
     );
   }

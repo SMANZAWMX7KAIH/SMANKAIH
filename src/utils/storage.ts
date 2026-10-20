@@ -81,19 +81,24 @@ const STORE_NAME = 'custom_backgrounds';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error('IndexedDB not supported'));
-      return;
-    }
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
+    try {
+      if (typeof window === 'undefined' || !window.indexedDB) {
+        reject(new Error('IndexedDB not supported'));
+        return;
       }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('IndexedDB open error'));
+      request.onblocked = () => reject(new Error('IndexedDB blocked'));
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
