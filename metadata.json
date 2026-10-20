@@ -1,0 +1,6 @@
+{
+  "name": "SMANKAIH — 7 Kebiasaan Anak Indonesia Hebat",
+  "description": "Website edukasi interaktif SMANKAIH untuk memantau dan mengembangkan 7 kebiasaan positif setiap hari bagi pelajar Indonesia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
