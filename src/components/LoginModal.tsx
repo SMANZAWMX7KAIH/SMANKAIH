@@ -12,7 +12,7 @@ import {
   Flag
 } from 'lucide-react';
 import { UserProfile } from '../types';
-import { saveProfile } from '../utils/storage';
+import { saveProfile, safeSessionStorageSet } from '../utils/storage';
 import { useDeviceDateTime } from '../utils/dateUtils';
 
 interface LoginModalProps {
@@ -344,7 +344,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess }) => {
                   <button
                     type="button"
                     onClick={() => {
-                      sessionStorage.setItem('smankaih_skip_music_initial', 'true');
+                      safeSessionStorageSet('smankaih_skip_music_initial', 'true');
                       handleFinalSubmit();
                     }}
                     className="w-1/2 py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 font-semibold text-xs border border-slate-700/60 transition cursor-pointer"

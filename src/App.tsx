@@ -40,7 +40,9 @@ import {
   getSavedTheme, 
   getCustomBackgroundFromDB, 
   getTodayDateString, 
-  formatDateIndonesian 
+  formatDateIndonesian,
+  safeSessionStorageGet,
+  safeSessionStorageSet 
 } from './utils/storage';
 import { useDeviceDateTime, formatDeviceDate } from './utils/dateUtils';
 import { audioController } from './utils/audioPlayer';
@@ -56,6 +58,7 @@ import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { PrintReportView } from './components/PrintReportView';
 import { ProfileModal } from './components/ProfileModal';
 import { AssetGuideModal } from './components/AssetGuideModal';
+import { Footer } from './components/Footer';
 
 export default function App() {
   const deviceTime = useDeviceDateTime();
@@ -114,10 +117,10 @@ export default function App() {
     }
 
     // If user exists and hasn't seen intro this session, show intro
-    const hasSeenIntro = sessionStorage.getItem('smankaih_session_intro');
+    const hasSeenIntro = safeSessionStorageGet('smankaih_session_intro');
     if (savedUser && !hasSeenIntro) {
       setShowIntro(true);
-      sessionStorage.setItem('smankaih_session_intro', 'true');
+      safeSessionStorageSet('smankaih_session_intro', 'true');
     }
 
     setIsInitialized(true);
@@ -127,9 +130,9 @@ export default function App() {
   const handleUserLogin = (profile: UserProfile) => {
     setUser(profile);
     setShowIntro(true);
-    sessionStorage.setItem('smankaih_session_intro', 'true');
+    safeSessionStorageSet('smankaih_session_intro', 'true');
     // Start music unless user skipped initial music
-    const skipMusic = sessionStorage.getItem('smankaih_skip_music_initial');
+    const skipMusic = safeSessionStorageGet('smankaih_skip_music_initial');
     if (!skipMusic) {
       audioController.play().catch(() => {});
     }
@@ -492,16 +495,6 @@ export default function App() {
                   })}
                 </div>
               </div>
-
-              {/* SMANKAIH Footer */}
-              <footer className="mt-12 py-6 border-t border-slate-700/20 text-center text-xs theme-text-muted space-y-1">
-                <div className="font-extrabold theme-text">
-                  SMANKAIH &bull; 7 Kebiasaan Anak Indonesia Hebat
-                </div>
-                <p className="text-[11px] opacity-80">
-                  Membentuk karakter tangguh, religius, berintegritas, mandiri, dan gotong royong untuk Generasi Emas Indonesia.
-                </p>
-              </footer>
             </div>
           )}
 
@@ -529,6 +522,9 @@ export default function App() {
             />
           )}
         </main>
+
+        {/* Official SMANKAIH Developer & Creator Credit Footer */}
+        <Footer />
       </div>
 
       {/* Persistent Audio Player Bar */}

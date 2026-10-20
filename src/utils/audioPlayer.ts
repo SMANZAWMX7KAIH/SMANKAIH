@@ -13,13 +13,20 @@ export interface SongTrack {
   tempo: string;
 }
 
+export function getAssetUrl(path: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  const cleanBase = base.endsWith('/') ? base : `${base}/`;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${cleanBase}${cleanPath}`;
+}
+
 export const SONGS: SongTrack[] = [
   {
     id: 'indonesia-raya',
     title: 'Indonesia Raya',
     subtitle: 'Lagu Kebangsaan Republik Indonesia',
     composer: 'Cipt. Wage Rudolf Supratman',
-    mp3Path: '/audio/indonesia-raya-instrumental.mp3',
+    mp3Path: getAssetUrl('audio/indonesia-raya-instrumental.mp3'),
     description: 'Aransemen orkestra simfoni khidmat, megah, dan berwibawa dengan paduan brass, strings, perkusi, dan timpani.',
     tempo: 'Maestoso (Khidmat & Agung)',
   },
@@ -28,7 +35,7 @@ export const SONGS: SongTrack[] = [
     title: 'Bangun Pemudi Pemuda',
     subtitle: 'Lagu Perjuangan & Semangat Generasi Muda',
     composer: 'Cipt. Alfred Simanjuntak',
-    mp3Path: '/audio/bangun-pemudi-pemuda-instrumental.mp3',
+    mp3Path: getAssetUrl('audio/bangun-pemudi-pemuda-instrumental.mp3'),
     description: 'Aransemen orkestra patriotik energik bersemangat tinggi dengan derap marching snare, brass membahana, dan strings dinamis.',
     tempo: 'Marcia con brio (Tegas & Bersemangat)',
   },

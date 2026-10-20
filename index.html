@@ -13,8 +13,30 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet" />
   </head>
-  <body class="min-h-screen antialiased selection:bg-red-600 selection:text-white">
-    <div id="root"></div>
+  <body class="min-h-screen bg-slate-950 text-white antialiased selection:bg-red-600 selection:text-white">
+    <div id="root">
+      <!-- Fallback pre-render loader: Replaced immediately when React mounts -->
+      <div id="smankaih-initial-loader" style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #090d16; color: #f8fafc; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; text-align: center; padding: 24px;">
+        <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #dc2626, #b91c1c); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #ffffff; margin-bottom: 16px; box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);">
+          SM
+        </div>
+        <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px;">
+          SMANKAIH
+        </div>
+        <div style="font-size: 12px; color: #94a3b8; max-width: 320px; line-height: 1.5; margin-bottom: 20px;">
+          7 Kebiasaan Anak Indonesia Hebat &bull; Memuat aplikasi...
+        </div>
+        <div style="width: 36px; height: 36px; border: 3px solid rgba(239, 68, 68, 0.2); border-top-color: #ef4444; border-radius: 50%; animation: smankaihSpin 0.8s linear infinite;"></div>
+        <style>
+          @keyframes smankaihSpin { to { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
+    <noscript>
+      <div style="position: fixed; inset: 0; background: #090d16; color: white; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; font-family: sans-serif;">
+        <p>JavaScript diperlukan untuk menjalankan SMANKAIH. Silakan aktifkan JavaScript di peramban Anda.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

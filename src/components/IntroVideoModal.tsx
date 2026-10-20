@@ -16,6 +16,7 @@ import {
   Users,
   Moon
 } from 'lucide-react';
+import { getAssetUrl } from '../utils/audioPlayer';
 
 interface IntroVideoModalProps {
   onComplete: () => void;
@@ -106,20 +107,20 @@ export const IntroVideoModal: React.FC<IntroVideoModalProps> = ({ onComplete, on
   const timerRef = useRef<any>(null);
 
   // Check if video file exists at /videos/intro-smankaih.mp4 or /videos/intro-7kaih.mp4
-  const [videoSrc, setVideoSrc] = useState<string>('/videos/intro-smankaih.mp4');
+  const [videoSrc, setVideoSrc] = useState<string>(() => getAssetUrl('videos/intro-smankaih.mp4'));
 
   useEffect(() => {
     const videoTest = document.createElement('video');
-    videoTest.src = '/videos/intro-smankaih.mp4';
+    videoTest.src = getAssetUrl('videos/intro-smankaih.mp4');
     videoTest.oncanplay = () => {
-      setVideoSrc('/videos/intro-smankaih.mp4');
+      setVideoSrc(getAssetUrl('videos/intro-smankaih.mp4'));
       setHasMp4Video(true);
     };
     videoTest.onerror = () => {
       const fallbackTest = document.createElement('video');
-      fallbackTest.src = '/videos/intro-7kaih.mp4';
+      fallbackTest.src = getAssetUrl('videos/intro-7kaih.mp4');
       fallbackTest.oncanplay = () => {
-        setVideoSrc('/videos/intro-7kaih.mp4');
+        setVideoSrc(getAssetUrl('videos/intro-7kaih.mp4'));
         setHasMp4Video(true);
       };
       fallbackTest.onerror = () => {

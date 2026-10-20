@@ -13,6 +13,67 @@ const STORAGE_KEYS = {
   TARGET_TIMES: '7kaih_habit_target_times_v1',
 };
 
+// In-memory fallback if localStorage or sessionStorage throws (e.g. mobile incognito or restricted webview)
+const memoryStore = new Map<string, string>();
+
+export function safeLocalStorageGet(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch (e) {
+    console.warn('localStorage read error, using memory fallback', e);
+  }
+  return memoryStore.get(key) || null;
+}
+
+export function safeLocalStorageSet(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+      return;
+    }
+  } catch (e) {
+    console.warn('localStorage write error, using memory fallback', e);
+  }
+  memoryStore.set(key, value);
+}
+
+export function safeLocalStorageRemove(key: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+  } catch (e) {
+    console.warn('localStorage remove error', e);
+  }
+  memoryStore.delete(key);
+}
+
+export function safeSessionStorageGet(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return window.sessionStorage.getItem(key);
+    }
+  } catch (e) {
+    console.warn('sessionStorage read error, using memory fallback', e);
+  }
+  return memoryStore.get(`session_${key}`) || null;
+}
+
+export function safeSessionStorageSet(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(key, value);
+      return;
+    }
+  } catch (e) {
+    console.warn('sessionStorage write error, using memory fallback', e);
+  }
+  memoryStore.set(`session_${key}`, value);
+}
+
 // IndexedDB database for large custom background images
 const DB_NAME = '7kaih_assets_db';
 const DB_VERSION = 1;
@@ -85,7 +146,7 @@ export async function removeCustomBackgroundFromDB(key: string): Promise<boolean
 // User Profile
 export function getSavedProfile(): UserProfile | null {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    const item = safeLocalStorageGet(STORAGE_KEYS.PROFILE);
     if (!item) return null;
     return JSON.parse(item) as UserProfile;
   } catch (e) {
@@ -96,7 +157,7 @@ export function getSavedProfile(): UserProfile | null {
 
 export function saveProfile(profile: UserProfile): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+    safeLocalStorageSet(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   } catch (e) {
     console.error('Error saving profile', e);
   }
@@ -104,7 +165,7 @@ export function saveProfile(profile: UserProfile): void {
 
 export function removeProfile(): void {
   try {
-    localStorage.removeItem(STORAGE_KEYS.PROFILE);
+    safeLocalStorageRemove(STORAGE_KEYS.PROFILE);
   } catch (e) {
     console.error('Error removing profile', e);
   }
@@ -113,7 +174,7 @@ export function removeProfile(): void {
 // Daily Records
 export function getAllRecords(): Record<string, DayRecord> {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.RECORDS);
+    const item = safeLocalStorageGet(STORAGE_KEYS.RECORDS);
     if (!item) return {};
     return JSON.parse(item);
   } catch {
@@ -156,7 +217,7 @@ export function saveHabitStatus(
 
   records[dateStr] = existing;
   try {
-    localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(records));
+    safeLocalStorageSet(STORAGE_KEYS.RECORDS, JSON.stringify(records));
   } catch (e) {
     console.error('Error saving records', e);
   }
@@ -167,7 +228,7 @@ export function saveHabitStatus(
 // Target times preference map
 export function getSavedTargetTimes(): Record<HabitId, string> {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.TARGET_TIMES);
+    const item = safeLocalStorageGet(STORAGE_KEYS.TARGET_TIMES);
     if (!item) return {} as Record<HabitId, string>;
     return JSON.parse(item);
   } catch {
@@ -179,7 +240,7 @@ export function saveTargetTime(habitId: HabitId, time: string): void {
   try {
     const current = getSavedTargetTimes();
     current[habitId] = time;
-    localStorage.setItem(STORAGE_KEYS.TARGET_TIMES, JSON.stringify(current));
+    safeLocalStorageSet(STORAGE_KEYS.TARGET_TIMES, JSON.stringify(current));
   } catch (e) {
     console.error('Error saving target time', e);
   }
@@ -200,7 +261,7 @@ export const DEFAULT_THEME_CONFIG: ThemeConfig = {
 
 export function getSavedTheme(): ThemeConfig {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.THEME);
+    const item = safeLocalStorageGet(STORAGE_KEYS.THEME);
     if (!item) return DEFAULT_THEME_CONFIG;
     return { ...DEFAULT_THEME_CONFIG, ...JSON.parse(item) };
   } catch {
@@ -212,7 +273,7 @@ export function saveTheme(theme: ThemeConfig): void {
   try {
     // Exclude large dataUrl from localStorage to avoid quota issues; it is kept in IndexedDB
     const safeToStore = { ...theme, customImageDataUrl: undefined };
-    localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(safeToStore));
+    safeLocalStorageSet(STORAGE_KEYS.THEME, JSON.stringify(safeToStore));
   } catch (e) {
     console.error('Error saving theme', e);
   }
@@ -221,12 +282,12 @@ export function saveTheme(theme: ThemeConfig): void {
 // Reset all SMANKAIH data
 export async function clearAllSMANKAIHData(): Promise<void> {
   try {
-    localStorage.removeItem(STORAGE_KEYS.PROFILE);
-    localStorage.removeItem(STORAGE_KEYS.RECORDS);
-    localStorage.removeItem(STORAGE_KEYS.THEME);
-    localStorage.removeItem(STORAGE_KEYS.TARGET_TIMES);
-    localStorage.removeItem(STORAGE_KEYS.HAS_SEEN_INTRO);
-    localStorage.removeItem(STORAGE_KEYS.MUSIC_PREFS);
+    safeLocalStorageRemove(STORAGE_KEYS.PROFILE);
+    safeLocalStorageRemove(STORAGE_KEYS.RECORDS);
+    safeLocalStorageRemove(STORAGE_KEYS.THEME);
+    safeLocalStorageRemove(STORAGE_KEYS.TARGET_TIMES);
+    safeLocalStorageRemove(STORAGE_KEYS.HAS_SEEN_INTRO);
+    safeLocalStorageRemove(STORAGE_KEYS.MUSIC_PREFS);
     await removeCustomBackgroundFromDB('user_custom_bg');
   } catch (e) {
     console.error('Error resetting all data', e);
