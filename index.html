@@ -96,13 +96,27 @@
           }
         }
 
-        // Capture phase error listener to detect script/stylesheet load failures (e.g. 404)
+        // Capture phase error listener to detect script/stylesheet load failures (e.g. 404 or raw tsx)
         window.addEventListener('error', function(e) {
           if (hasMounted) return;
           var target = e.target;
           if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
             var url = target.src || target.href || 'modul';
-            showStartupFailure('Gagal mengunduh berkas aplikasi (' + url.split('/').pop() + '). Periksa koneksi internet Anda.');
+            var file = url.split('/').pop().split('?')[0] || 'modul';
+
+            // Detect if browser was erroneously asked to load unbundled TypeScript source
+            if (file === 'main.tsx' || file.slice(-4) === '.tsx') {
+              var p = window.location.pathname;
+              if (p.indexOf('/dist') === -1 && window.location.protocol.indexOf('http') === 0) {
+                var targetPath = p.endsWith('/') ? p + 'dist/' : p + '/dist/';
+                window.location.replace(targetPath + window.location.search + window.location.hash);
+                return;
+              }
+              showStartupFailure('Berkas aplikasi mentah (' + file + ') tidak dapat dieksekusi peramban secara langsung. Pastikan GitHub Actions telah mengompilasi proyek ke folder "dist".');
+              return;
+            }
+
+            showStartupFailure('Gagal mengunduh berkas aplikasi (' + file + '). Periksa koneksi internet Anda.');
           }
         }, true);
 
